@@ -329,6 +329,11 @@ struct unittype *parameter_value = 0;
 int lastunitset = 0;
 struct unittype lastunit;
 
+/* Stack */
+#define STACKLENGTH 32
+int unitstack_N = 0;
+struct unittype unitstack[STACKLENGTH];
+
 char *NULLUNIT = "";  /* Used for units that are canceled during reduction */
 
 #define startswith(string, prefix) (!strncmp(string, prefix, strlen(prefix)))
@@ -6273,44 +6278,17 @@ main(int argc, char **argv)
          showfuncdefinition(funcval, INVERSE);
          continue;
        }
-       do { 
-         int repeat; 
-         do {
-           repeat = 0;
-           fflush(stdout);
-           getuser(&wantstr,&wantstrsize,querywant);
-           replace_minus(wantstr);
-           comment = strip_comment(wantstr);
-           removespaces(wantstr);
-           if (logfile && comment && emptystr(wantstr)){
-             fprintf(logfile, "#%s\n", comment);
-             repeat = 1;
-           }
-           if (ishelpquery(wantstr, &have)){
-             repeat = 1;
-             printf("%s%s\n",queryhave, havestr);
-           }
-         } while (repeat);
-       } while (replacealias(&wantstr, &wantstrsize)
-                || (!fnlookup(wantstr)
-                    && processwant(&want, wantstr, querywantwidth)));
-       if (logfile) {
-         fprintf(logfile, "%s", LOGTO);
-         tightprint(logfile, wantstr);
-         if (comment)
-           fprintf(logfile, "\t#%s", comment);
-         putc('\n', logfile);
+       unitstack_N++;
+       if (unitstack_N > STACKLENGTH) unitstack_N = STACKLENGTH;
+       for(int i=unitstack_N-1; i>0; i--){
+         unitcopy(&unitstack[i], &unitstack[i-1]);
        }
-       if (emptystr(wantstr))
-         showdefinition(havestr,&have);
-       else if (strchr(wantstr, UNITSEPCHAR))
-         showunitlist(havestr, &have, wantstr);
-       else if ((funcval = fnlookup(wantstr)))
-         showfunc(havestr, &have, funcval); /* Clobbers have */
-       else {
-         showanswer(havestr,&have,wantstr, &want);
-         freeunit(&want);
+       unitcopy(&unitstack[0], &have);
+       
+       for(int i=unitstack_N-1; i>=0; i--){
+            showdefinition(havestr,&unitstack[i]);
        }
+
        unitcopy(&lastunit, &have);
        lastunitset=1;
        freeunit(&have);

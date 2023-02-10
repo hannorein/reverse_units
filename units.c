@@ -6394,6 +6394,20 @@ main(int argc, char **argv)
                  }
                  rpn_command = 1;
              }
+         }else if (strcmp(havestr,"^")==0 || strcmp(havestr,"**")==0 ){
+             if (unitstack_N>=2){
+                 int err = unitpower(&unitstack[1], &unitstack[0]);
+                 if (err){
+                     printf("      %s\n",errormsg[err]);
+                 }else{
+                     freeunit(&unitstack[0]);
+                     for(int i=1; i<unitstack_N; i++){
+                         unitstack[i-1] = unitstack[i];
+                     }
+                     unitstack_N--;
+                 }
+                 rpn_command = 1;
+             }
          }
          if (rpn_command) showstack();
          if (logfile && comment && emptystr(havestr))

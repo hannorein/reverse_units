@@ -6378,8 +6378,24 @@ main(int argc, char **argv)
                  }
                  rpn_command = 1;
              }
+         }else if (strcmp(havestr,"-")==0){
+             if (unitstack_N>=2){
+                 unitstack[0].factor *= -1;
+                 int err = addunit(&unitstack[0], &unitstack[1]);
+                 if (err){
+                     printf("      %s\n",errormsg[err]);
+                     unitstack[0].factor *= -1;
+                 }else{
+                     freeunit(&unitstack[1]);
+                     for(int i=2; i<unitstack_N; i++){
+                         unitstack[i-1] = unitstack[i];
+                     }
+                     unitstack_N--;
+                 }
+                 rpn_command = 1;
+             }
          }
-         showstack();
+         if (rpn_command) showstack();
          if (logfile && comment && emptystr(havestr))
            fprintf(logfile, "#%s\n", comment);
        } while (rpn_command || emptystr(havestr) || ishelpquery(havestr,0) ||

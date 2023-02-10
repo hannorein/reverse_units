@@ -2408,6 +2408,7 @@ completereduce(struct unittype *unit)
    if ((err=reduceunit(unit)))
      return err;
    sortunit(unit);
+   printf("cancel\n");
    cancelunit(unit);
    return 0;
 }
@@ -6268,22 +6269,29 @@ main(int argc, char **argv)
          comment = strip_comment(havestr);
          removespaces(havestr);
 
-         struct function fp = realfunctions;
-         while(*fp){
-            //if (startswith(*curbuiltin,text))
-            //  output = dupstr(*curbuiltin);
+         /// RPN
+         struct function* fp = realfunctions;
+         while(fp->name){
+            if (strcmp(havestr,fp->name)==0) break;
             fp++;
          }
-
-         if (strcmp(havestr,"drop")==0){
+         if (fp->name){
+             if (unitstack_N>=1){
+                 int err = funcunit(&unitstack[0], fp);
+                 if (err){
+                     printf("      %s\n",errormsg[err]);
+                 }
+                 completereduce(&unitstack[0]);
+                 rpn_command = 1;
+             }
+         }else if (strcmp(havestr,"drop")==0){
              if (unitstack_N>=1){
                  freeunit(&unitstack[0]);
                  for(int i=1; i<unitstack_N; i++){
-                     unitcopy(&unitstack[i-1], &unitstack[i]);
+                     unitstack[i-1] = unitstack[i];
                  }
                  unitstack_N--;
                  if (unitstack_N<0) unitstack_N = 0;
-                 showstack();
                  rpn_command = 1;
              }
          }else if (strcmp(havestr,"swap")==0){
@@ -6291,26 +6299,32 @@ main(int argc, char **argv)
                  struct unittype tmp = unitstack[0];
                  unitstack[0] = unitstack[1];
                  unitstack[1] = tmp;
-                 showstack();
                  rpn_command = 1;
              }
          }else if (strcmp(havestr,"copy")==0){
-             if (unitstack_N>=2){
+             if (unitstack_N>=1){
                  unitstack_N++;
                  if (unitstack_N > STACKLENGTH){
                      unitstack_N = STACKLENGTH;
                      freeunit(&unitstack[unitstack_N-1]);
                  }
                  for(int i=unitstack_N-1; i>0; i--){
-                     unitcopy(&unitstack[i], &unitstack[i-1]);
+                     unitstack[i] = unitstack[i-1];
                  }
-                 showstack();
+                 rpn_command = 1;
+             }
+         }else if (strcmp(havestr,"sqrt")==0){
+             if (unitstack_N>=1){
+                 int err = rootunit(&unitstack[0], 2);
+                 if (err){
+                     printf("      %s\n",errormsg[err]);
+                 }
+                 completereduce(&unitstack[0]);
                  rpn_command = 1;
              }
          }else if (strcmp(havestr,"inv")==0){
              if (unitstack_N>=1){
                  invertunit(&unitstack[0]);
-                 showstack();
                  rpn_command = 1;
              }
          }else if (strcmp(havestr,"*")==0){
@@ -6321,26 +6335,26 @@ main(int argc, char **argv)
                  }else{
                      freeunit(&unitstack[1]);
                      for(int i=2; i<unitstack_N; i++){
-                         unitcopy(&unitstack[i-1], &unitstack[i]);
+                         unitstack[i-1] = unitstack[i];
                      }
                      unitstack_N--;
                  }
-                 showstack();
+                 completereduce(&unitstack[0]);
                  rpn_command = 1;
              }
          }else if (strcmp(havestr,"/")==0){
              if (unitstack_N>=2){
-                 int err = divunit(&unitstack[0], &unitstack[1]);
+                 int err = divunit(&unitstack[1], &unitstack[0]);
                  if (err){
                      printf("      %s\n",errormsg[err]);
                  }else{
-                     freeunit(&unitstack[1]);
-                     for(int i=2; i<unitstack_N; i++){
-                         unitcopy(&unitstack[i-1], &unitstack[i]);
+                     freeunit(&unitstack[0]);
+                     for(int i=1; i<unitstack_N; i++){
+                         unitstack[i-1] = unitstack[i];
                      }
                      unitstack_N--;
                  }
-                 showstack();
+                 completereduce(&unitstack[0]);
                  rpn_command = 1;
              }
          }else if (strcmp(havestr,"+")==0){
@@ -6351,14 +6365,14 @@ main(int argc, char **argv)
                  }else{
                      freeunit(&unitstack[1]);
                      for(int i=2; i<unitstack_N; i++){
-                         unitcopy(&unitstack[i-1], &unitstack[i]);
+                         unitstack[i-1] = unitstack[i];
                      }
                      unitstack_N--;
                  }
-                 showstack();
                  rpn_command = 1;
              }
          }
+         showstack();
          if (logfile && comment && emptystr(havestr))
            fprintf(logfile, "#%s\n", comment);
        } while (rpn_command || emptystr(havestr) || ishelpquery(havestr,0) ||
@@ -6389,7 +6403,7 @@ main(int argc, char **argv)
            freeunit(&unitstack[unitstack_N-1]);
        }
        for(int i=unitstack_N-1; i>0; i--){
-         unitcopy(&unitstack[i], &unitstack[i-1]);
+         unitstack[i] = unitstack[i-1];
        }
        unitcopy(&unitstack[0], &have);
        

@@ -6285,6 +6285,12 @@ main(int argc, char **argv)
                  completereduce(&unitstack[0]);
                  rpn_command = 1;
              }
+         }else if (strcmp(havestr,"clear")==0){
+             for(int i=0; i<unitstack_N; i++){
+                freeunit(&unitstack[i]);
+             }
+             unitstack_N = 0;
+             rpn_command = 1;
          }else if (strcmp(havestr,"drop")==0){
              if (unitstack_N>=1){
                  freeunit(&unitstack[0]);

@@ -141,6 +141,15 @@ extern struct parseflag parserflags;
 extern struct unittype *parameter_value;
 extern char *function_parameter;
 
+
+struct function { 
+   char *name; 
+   double (*func)(double); 
+   int type;
+}; 
+int funcunit(struct unittype *theunit, struct function const *fun);
+extern struct function realfunctions[];
+
 extern int lastunitset;
 extern struct unittype lastunit;
 

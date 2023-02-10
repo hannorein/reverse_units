@@ -230,7 +230,7 @@ char *deftext="        Definition: ";/* Output text when printing definition */
 char *digits = "0123456789.,";
 
 
-#define QUERYHAVE  "You have: "  /* Prompt text for units to convert from */
+#define QUERYHAVE  "# "  /* Prompt text for units to convert from */
 #define QUERYWANT  "You want: "  /* Prompt text for units to convert to */
 
 #define LOGFROM    "From: "     /* tag for log file */
@@ -2817,7 +2817,7 @@ showdefinition(char *unitstr, struct unittype *theunit)
   while((unitstr = lookupunit(unitstr,1))
         && strspn(unitstr,digits) != strlen(unitstr)
         && !strchr(unitstr,PRIMITIVECHAR)) {
-    tightprint(stdout,unitstr);
+    //tightprint(stdout,unitstr);
     if (logfile) tightprint(logfile,unitstr);
     logputs(" = ");
   } 
@@ -6014,6 +6014,17 @@ write_files_sig(int sig)
   raise(sig);
 }
 
+void
+showstack(){
+    printf("---\n");
+    for(int i=unitstack_N-1; i>=0; i--){
+        printf("stack[%d]=\t",i);
+        showunit(&unitstack[i]);
+        printf("\n");
+    }
+    printf("---\n");
+}
+
 
 int
 main(int argc, char **argv)
@@ -6248,15 +6259,109 @@ main(int argc, char **argv)
        exit(EXIT_SUCCESS);
    } else {       /* interactive */
      for (;;) {
+       int rpn_command = 0;
        do {
+         rpn_command = 0;
          fflush(stdout);
          getuser(&havestr,&havestrsize,queryhave);
          replace_minus(havestr);
          comment = strip_comment(havestr);
          removespaces(havestr);
+
+         struct function fp = realfunctions;
+         while(*fp){
+            //if (startswith(*curbuiltin,text))
+            //  output = dupstr(*curbuiltin);
+            fp++;
+         }
+
+         if (strcmp(havestr,"drop")==0){
+             if (unitstack_N>=1){
+                 freeunit(&unitstack[0]);
+                 for(int i=1; i<unitstack_N; i++){
+                     unitcopy(&unitstack[i-1], &unitstack[i]);
+                 }
+                 unitstack_N--;
+                 if (unitstack_N<0) unitstack_N = 0;
+                 showstack();
+                 rpn_command = 1;
+             }
+         }else if (strcmp(havestr,"swap")==0){
+             if (unitstack_N>=2){
+                 struct unittype tmp = unitstack[0];
+                 unitstack[0] = unitstack[1];
+                 unitstack[1] = tmp;
+                 showstack();
+                 rpn_command = 1;
+             }
+         }else if (strcmp(havestr,"copy")==0){
+             if (unitstack_N>=2){
+                 unitstack_N++;
+                 if (unitstack_N > STACKLENGTH){
+                     unitstack_N = STACKLENGTH;
+                     freeunit(&unitstack[unitstack_N-1]);
+                 }
+                 for(int i=unitstack_N-1; i>0; i--){
+                     unitcopy(&unitstack[i], &unitstack[i-1]);
+                 }
+                 showstack();
+                 rpn_command = 1;
+             }
+         }else if (strcmp(havestr,"inv")==0){
+             if (unitstack_N>=1){
+                 invertunit(&unitstack[0]);
+                 showstack();
+                 rpn_command = 1;
+             }
+         }else if (strcmp(havestr,"*")==0){
+             if (unitstack_N>=2){
+                 int err = multunit(&unitstack[0], &unitstack[1]);
+                 if (err){
+                     printf("      %s\n",errormsg[err]);
+                 }else{
+                     freeunit(&unitstack[1]);
+                     for(int i=2; i<unitstack_N; i++){
+                         unitcopy(&unitstack[i-1], &unitstack[i]);
+                     }
+                     unitstack_N--;
+                 }
+                 showstack();
+                 rpn_command = 1;
+             }
+         }else if (strcmp(havestr,"/")==0){
+             if (unitstack_N>=2){
+                 int err = divunit(&unitstack[0], &unitstack[1]);
+                 if (err){
+                     printf("      %s\n",errormsg[err]);
+                 }else{
+                     freeunit(&unitstack[1]);
+                     for(int i=2; i<unitstack_N; i++){
+                         unitcopy(&unitstack[i-1], &unitstack[i]);
+                     }
+                     unitstack_N--;
+                 }
+                 showstack();
+                 rpn_command = 1;
+             }
+         }else if (strcmp(havestr,"+")==0){
+             if (unitstack_N>=2){
+                 int err = addunit(&unitstack[0], &unitstack[1]);
+                 if (err){
+                     printf("      %s\n",errormsg[err]);
+                 }else{
+                     freeunit(&unitstack[1]);
+                     for(int i=2; i<unitstack_N; i++){
+                         unitcopy(&unitstack[i-1], &unitstack[i]);
+                     }
+                     unitstack_N--;
+                 }
+                 showstack();
+                 rpn_command = 1;
+             }
+         }
          if (logfile && comment && emptystr(havestr))
            fprintf(logfile, "#%s\n", comment);
-       } while (emptystr(havestr) || ishelpquery(havestr,0) ||
+       } while (rpn_command || emptystr(havestr) || ishelpquery(havestr,0) ||
                 (!fnlookup(havestr) && !invfnlookup(havestr)
                  && !aliaslookup(havestr) 
                  && processunit(&have, havestr, queryhavewidth)));
@@ -6279,15 +6384,16 @@ main(int argc, char **argv)
          continue;
        }
        unitstack_N++;
-       if (unitstack_N > STACKLENGTH) unitstack_N = STACKLENGTH;
+       if (unitstack_N > STACKLENGTH){
+           unitstack_N = STACKLENGTH;
+           freeunit(&unitstack[unitstack_N-1]);
+       }
        for(int i=unitstack_N-1; i>0; i--){
          unitcopy(&unitstack[i], &unitstack[i-1]);
        }
        unitcopy(&unitstack[0], &have);
        
-       for(int i=unitstack_N-1; i>=0; i--){
-            showdefinition(havestr,&unitstack[i]);
-       }
+       showstack();
 
        unitcopy(&lastunit, &have);
        lastunitset=1;

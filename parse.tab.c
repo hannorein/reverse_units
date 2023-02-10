@@ -102,11 +102,11 @@ void yyerror(struct commtype *comm, char *);
 #define MAXMEM 100
 int unitcount=0;    /* Counts the number of units allocated by the parser */
 
-struct function { 
-   char *name; 
-   double (*func)(double); 
-   int type;
-}; 
+//struct function { 
+//   char *name; 
+//   double (*func)(double); 
+//   int type;
+//}; 
 
 #define DIMENSIONLESS 0
 #define ANGLEIN 1

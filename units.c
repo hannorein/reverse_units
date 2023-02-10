@@ -2408,7 +2408,6 @@ completereduce(struct unittype *unit)
    if ((err=reduceunit(unit)))
      return err;
    sortunit(unit);
-   printf("cancel\n");
    cancelunit(unit);
    return 0;
 }
@@ -6017,13 +6016,15 @@ write_files_sig(int sig)
 
 void
 showstack(){
-    printf("---\n");
-    for(int i=unitstack_N-1; i>=0; i--){
-        printf("stack[%d]=\t",i);
-        showunit(&unitstack[i]);
-        printf("\n");
+    if (unitstack_N){
+        printf("---\n");
+        for(int i=unitstack_N-1; i>=0; i--){
+            printf("stack[%d]=\t",i);
+            showunit(&unitstack[i]);
+            printf("\n");
+        }
+        printf("---\n");
     }
-    printf("---\n");
 }
 
 
